@@ -9,17 +9,51 @@ A music streaming startup, Sparkify, has grown their user base and song database
 
 This section describes how to get use this repositrory.
 
-**Database setup**
-To run this project you will need connectivity to a postgreSQL database with below details.
+**Redshift Cluster Setup**
+
+To run this project you will need connectivity to an AWS Redshift database.
+The setup_redshift.ipynb notebook will setup the cluster.
+In order for the notebook to run you will need a "dwh_udacity.cgf" file in 
+the same folder as the notebook, with below structure.
 ```
-dbname=studentdb
-user=student
-password=student
+[AWS]
+KEY=
+SECRET=
+
+[DWH] 
+DWH_CLUSTER_TYPE=multi-node
+DWH_NUM_NODES=4
+DWH_NODE_TYPE=dc2.large
+
+DWH_IAM_ROLE_NAME=
+DWH_CLUSTER_IDENTIFIER=
+DWH_DB=
+DWH_DB_USER=dwhuser
+DWH_DB_PASSWORD=
+DWH_PORT=
 ```
 
 **Python environemnt setup**
 ```
 pip install -r requirements.txt
+```
+In order to run the table creation and the ETLs you will need a "dwh.cfg" file
+in the same folder as the .py files with the below structure.
+```
+[CLUSTER]
+HOST=''
+DB_NAME=''
+DB_USER=''
+DB_PASSWORD=''
+DB_PORT=''
+
+[IAM_ROLE]
+ARN=
+
+[S3]
+LOG_DATA=''
+LOG_JSONPATH=''
+SONG_DATA=''
 ```
 
 **Initialize the database**
@@ -34,72 +68,18 @@ python etl.py
 
 ## Project Structure
 ```
-\data --> holds the sample data for the project
 \create_tables.py --> script to create the database and tables
 \etl.py --> script which runs the etl pipeline
 \sql_queries.py --> contains SQL queries run throughout the project
-\etl.ipynb --> jupyter notebook that includes experimenting for the etl.py script
-\test.ipynb --> jupyter notebook that includes sanity tests for the database
+\setup_redshift.ipynb --> jupyter notebook to setup redshift, IAM roles.
 ```
 
 ## Database design
 
-The goal of the project is to run efficient queries on song playing analytics which is mainly sotred in the songplays table (fact table).
-One extreme would be to just have one table and include all the information about users, songs and artists in the same table.
-However in order to be conservative with space this project normalizes the data into seperate songs, users and artists tables (dim tables).
-This allows us to keep seperate lists (tables) of those entities and gets rid of a lot of data duplication.
+The goal of the project is to run efficient queries on song playing analytics which is mainly sotred in the songplays table.
+The design of the tables remains the same as before but the main difference
+now is taht the DB is deployed in a IAAS environemnt which is highly scalable.
 
-Additionally we could build extra indexes on the tables depending on the kind of queries we want to run in the future.
-
-The etl read the data from JSON files, applies light transformations and writes it inot the postgres DB.
-
-## Example queries and results for song play analysis
-
-Which are the top 10 locations from where the users are accesing the app from.
-```
-SELECT location, COUNT(*) FROM songplays GROUP BY location ORDER BY COUNT(*) DESC LIMIT 10;
-```
-
-Inspect the app activity by day of the week and hour of day. This can be visualised in a heatmap.
-```
-SELECT t.weekday, t.hour, COUNT(*) FROM songplays sp JOIN time t ON sp.start_time = t.start_time GROUP BY t.weekday, t.hour ORDER BY t.weekday, t.hour;
-```
-
-
-## (Bonus) Helper Commands for postgreSQL
-
-**login to psql with {postgres} user**
-```
-# linux
-sudo -u {postgres} psql
-
-# windows
-psql -U postgres
-```
-
-**PSQL commands**
-```
-\conninfo # connection info
-\l # list all databases
-\dt # list all relations
-\du # list all users
-CREATE USER <username> WITH PASSWORD '<password>';
-CREATE DATABASE <name> WITH OWNER <username>;
-GRANT ALL PRIVILEGES ON DATABASE db_name to user_name;
-ALTER USER username CREATEDB; # grant user privilege to create dbs
-```
-
-**reinstall pgsql DB**
-```
-# linux
-sudo yum remove postgresql11-server
-
-sudo rm -rf  /var/lib/pgsql/11/data
-sudo /usr/pgsql-11/bin/postgresql-11-setup initdb
-
-sudo systemctl start postgresql-11
-sudo systemctl enable postgresql-11
-
-sudo systemctl restart postgresql-11 # restart service
-```
-
+The ETL is integrated to read from AWS S3 buckets into staging table on the
+Redshift cluster. Then additional queries trasnform and move the data into
+their final tables to be used for analytics.

@@ -1,5 +1,6 @@
 # config files
 dwh.cfg
+dwh_udacity.cfg
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
